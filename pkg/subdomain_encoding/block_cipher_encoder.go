@@ -22,12 +22,12 @@ func NewBlockCipherEncoder(topLevelDomain string, maxSubdomainLevels int, block 
 	}
 }
 
-func (be *BlockCipherEncoder) Encode(r io.Reader) (<-chan string, <-chan error) {
+func (be *BlockCipherEncoder) Decode(r io.Reader) (<-chan string, <-chan error) {
 	output := make(chan string, 1)
 	errors := make(chan error, 1)
 
 	go func() {
-		err := be.processInput(r, output)
+		err := be.decodeInput(r, output)
 		if err != nil {
 			close(output)
 			errors <- err
@@ -36,7 +36,37 @@ func (be *BlockCipherEncoder) Encode(r io.Reader) (<-chan string, <-chan error) 
 	return output, errors
 }
 
-func (be *BlockCipherEncoder) processInput(r io.Reader, output chan<- string) error {
+func (be *BlockCipherEncoder) Encode(r io.Reader) (<-chan string, <-chan error) {
+	output := make(chan string, 1)
+	errors := make(chan error, 1)
+
+	go func() {
+		err := be.encodeInput(r, output)
+		if err != nil {
+			close(output)
+			errors <- err
+		}
+	}()
+	return output, errors
+}
+
+func (be *BlockCipherEncoder) decodeInput(r io.Reader, output chan<- string) error {
+	//blockSize := be.block.BlockSize()
+	//src := make([]byte, blockSize)
+
+	for ; ; {
+		// read url
+
+		// strip top level domain
+		// split into subdomains
+		// foreach subdomain
+		//    base32 decode
+		//    decrypt
+		//    emit
+	}
+}
+
+func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) error {
 	blockSize := be.block.BlockSize()
 	src := make([]byte, blockSize)
 	encrypted := make([]byte, blockSize)

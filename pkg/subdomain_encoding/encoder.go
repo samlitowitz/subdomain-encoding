@@ -8,5 +8,6 @@ const (
 )
 
 type Encoder interface {
-	Encode(io.Reader) (<-chan string, error)
+	Decode(io.Reader) (<-chan string, <-chan error)
+	Encode(io.Reader) (<-chan string, <-chan error)
 }
