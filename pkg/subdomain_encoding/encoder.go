@@ -3,7 +3,7 @@ package subdomain_encoding
 import "io"
 
 const (
-	MaxDomainNameLength int = 256
+	MaxDomainNameLength int = 253
 	MaxSubdomainNameLength int = 63
 )
 

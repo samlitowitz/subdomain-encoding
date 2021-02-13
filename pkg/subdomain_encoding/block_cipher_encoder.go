@@ -8,6 +8,8 @@ import (
 	"io"
 )
 
+const Terminator = 0xa
+
 type BlockCipherEncoder struct {
 	block              cipher.Block
 	topLevelDomain     string
@@ -51,12 +53,9 @@ func (be *BlockCipherEncoder) Encode(r io.Reader) (<-chan string, <-chan error) 
 }
 
 func (be *BlockCipherEncoder) decodeInput(r io.Reader, output chan<- string) error {
-	//blockSize := be.block.BlockSize()
-	//src := make([]byte, blockSize)
-
 	for ; ; {
 		// read url
-
+		//    read until terminator or max
 		// strip top level domain
 		// split into subdomains
 		// foreach subdomain
@@ -75,9 +74,6 @@ func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) err
 	for ; ; {
 		// read at most blockSize bytes
 		n, err := r.Read(src)
-		if err == io.EOF {
-			return err
-		}
 		if err != nil {
 			return err
 		}
