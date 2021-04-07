@@ -2,10 +2,13 @@ package subdomain_encoding
 
 import (
 	"bytes"
+	"context"
 	"crypto/cipher"
 	"encoding/base32"
 	"fmt"
 	"io"
+	"strings"
+	"time"
 )
 
 const Terminator = 0xa
@@ -54,14 +57,54 @@ func (be *BlockCipherEncoder) Encode(r io.Reader) (<-chan string, <-chan error) 
 
 func (be *BlockCipherEncoder) decodeInput(r io.Reader, output chan<- string) error {
 	for ; ; {
-		// read url
-		//    read until terminator or max
-		// strip top level domain
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5 * time.Second))
+		rawUrl, err := readRawUrl(ctx, r, be.topLevelDomain)
+		cancel()
+		if err != nil {
+			return err
+		}
 		// split into subdomains
+		subdomains := strings.Split(rawUrl[:len(rawUrl)-len(be.topLevelDomain)], ".")
 		// foreach subdomain
-		//    base32 decode
-		//    decrypt
-		//    emit
+		for _, subdomain := range subdomains {
+			//    base32 decode
+			decodedReader := base32.NewDecoder(base32.StdEncoding.WithPadding(base32.NoPadding), bytes.NewReader([]byte(subdomain)))
+			//    read until io.EOF
+			//    decrypt
+			//    emit
+		}
+	}
+}
+
+func readRawUrl(ctx context.Context, r io.Reader, topLevelDomain string) (string, error) {
+	rawUrl := make([]byte, 0, MaxDomainNameLength)
+	for ; ; {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+		_, err := r.Read(rawUrl[len(rawUrl):])
+		if err != nil {
+			return "", err
+		}
+
+		// not enough characters to hold top level domain, do not check if it contains
+		if len(rawUrl) < len(topLevelDomain) {
+			continue
+		}
+
+		// at max length length and does not include top level domain
+		if len(rawUrl) >= MaxDomainNameLength && !strings.Contains(string(rawUrl), topLevelDomain) {
+			return "", fmt.Errorf("top level domain `%s` not found in raw URL `%s`", topLevelDomain, rawUrl)
+		}
+
+		// does not include top level domain
+		if !strings.Contains(string(rawUrl), topLevelDomain) {
+			continue
+		}
+
+		return string(rawUrl), nil
 	}
 }
 
@@ -84,7 +127,7 @@ func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) err
 		// encrypt data
 		be.block.Encrypt(encrypted, src)
 		// base32 encode
-		encodingInputWriter := base32.NewEncoder(base32.StdEncoding, encodedOutputWriter)
+		encodingInputWriter := base32.NewEncoder(base32.StdEncoding.WithPadding(base32.NoPadding), encodedOutputWriter)
 		n, err = encodingInputWriter.Write(encrypted)
 		if err != nil {
 			return err
@@ -93,8 +136,9 @@ func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) err
 			return fmt.Errorf("failed to encode all data")
 		}
 
-		// build subdomain
+		encodedOutputWriter.Reset()
 		subdomain.Reset()
+		// build subdomain
 	build_subdomain:
 		for remainingDomainNameLength := MaxDomainNameLength - len(be.topLevelDomain); remainingDomainNameLength > 0; {
 			for i := 0; i < be.maxSubdomainLevels; i++ {
@@ -102,12 +146,6 @@ func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) err
 				encoded := encodedOutputWriter.Next(nextSubdomainMaxLength)
 				if len(encoded) == 0 {
 					break
-				}
-
-				// strip padding
-				j := bytes.IndexByte(encoded, '=')
-				if j > -1 {
-					encoded = encoded[:j]
 				}
 
 				subdomain.Write(encoded)
@@ -123,7 +161,6 @@ func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) err
 		// clear slices
 		src = src[:0]
 		encrypted = encrypted[:0]
-		encodedOutputWriter.Reset()
 	}
 }
 
