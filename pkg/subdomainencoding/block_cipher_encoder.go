@@ -26,8 +26,8 @@ func NewBlockCipherEncoder(domainName *pkg.DomainName, block cipher.Block) *Bloc
 // Decode takes a domain name which contains a message encoded using a block cipher
 func (be *BlockCipherEncoder) Decode(src []byte) ([]byte, error) {
 	blockSize := be.block.BlockSize()
-	if blockSize > MaxSubdomainNameLength {
-		return nil, fmt.Errorf("block size of %d is larger than maximum allowed sub-domain length of %d", blockSize, MaxSubdomainNameLength)
+	if blockSize > pkg.MaxSubdomainNameLength {
+		return nil, fmt.Errorf("block size of %d is larger than maximum allowed sub-domain length of %d", blockSize, pkg.MaxSubdomainNameLength)
 	}
 
 	// 1. Remove base domain
@@ -60,8 +60,8 @@ func (be *BlockCipherEncoder) Decode(src []byte) ([]byte, error) {
 // Encode encodes data into a domain name using a block cipher
 func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 	blockSize := be.block.BlockSize()
-	if blockSize > MaxSubdomainNameLength {
-		return "", fmt.Errorf("block size of %d is larger than maximum allowed sub-domain length of %d", blockSize, MaxSubdomainNameLength)
+	if blockSize > pkg.MaxSubdomainNameLength {
+		return "", fmt.Errorf("block size of %d is larger than maximum allowed sub-domain length of %d", blockSize, pkg.MaxSubdomainNameLength)
 	}
 
 	// 1. Pad
@@ -78,8 +78,14 @@ func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 	// 1. Encode
 	b32Output := bytes.NewBuffer(make([]byte, 0, len(cipherText)))
 	b32Input := base32.NewEncoder(base32.StdEncoding.WithPadding(base32.NoPadding), b32Output)
-	b32Input.Write(cipherText)
-	b32Input.Close()
+	_, err = b32Input.Write(cipherText)
+	if err != nil {
+		return "", err
+	}
+	err = b32Input.Close()
+	if err != nil {
+		return "", err
+	}
 	encodedCipherText := make([]byte, b32Output.Len())
 	n, err := b32Output.Read(encodedCipherText)
 	if err != nil {
@@ -96,7 +102,7 @@ func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 	}
 	for i := 0; i < len(encodedCipherText); {
 		remainingCipherText := len(encodedCipherText) - i
-		n := (MaxSubdomainNameLength / blockSize) * blockSize
+		n := (pkg.MaxSubdomainNameLength / blockSize) * blockSize
 		if remainingCipherText < n {
 			n = remainingCipherText
 		}
@@ -113,7 +119,7 @@ func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 func (be *BlockCipherEncoder) MaxBytes() int {
 	blockSize := be.block.BlockSize()
 
-	n := MaxDomainNameLength - len(be.domainName.String())
+	n := pkg.MaxDomainNameLength - len(be.domainName.String())
 	maxBlocks := n / (blockSize + 1)
 	if n % (blockSize + 1) > 0 {
 		maxBlocks += 1

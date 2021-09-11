@@ -22,7 +22,10 @@ func main() {
 	domainName := pkg.NewDomainName()
 	subDomains := strings.Split(domain, ".")
 	for _, subDomain := range subDomains {
-		domainName.AddSubDomain(subDomain)
+		err := domainName.AddSubDomain(subDomain)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	cipher, err := aes.NewCipher([]byte(key))
