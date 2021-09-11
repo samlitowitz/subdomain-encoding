@@ -2,171 +2,128 @@ package subdomain_encoding
 
 import (
 	"bytes"
-	"context"
 	"crypto/cipher"
 	"encoding/base32"
 	"fmt"
-	"io"
+	"github.com/samlitowitz/subdomain-block-encoding/pkg"
 	"strings"
-	"time"
 )
 
 const Terminator = 0xa
 
 type BlockCipherEncoder struct {
-	block              cipher.Block
-	topLevelDomain     string
-	maxSubdomainLevels int
+	block      cipher.Block
+	domainName *pkg.DomainName
 }
 
-func NewBlockCipherEncoder(topLevelDomain string, maxSubdomainLevels int, block cipher.Block) *BlockCipherEncoder {
+func NewBlockCipherEncoder(domainName *pkg.DomainName, block cipher.Block) *BlockCipherEncoder {
 	return &BlockCipherEncoder{
-		block:              block,
-		topLevelDomain:     topLevelDomain,
-		maxSubdomainLevels: maxSubdomainLevels,
+		block:      block,
+		domainName: domainName,
 	}
 }
 
-func (be *BlockCipherEncoder) Decode(r io.Reader) (<-chan string, <-chan error) {
-	output := make(chan string, 1)
-	errors := make(chan error, 1)
-
-	go func() {
-		err := be.decodeInput(r, output)
-		if err != nil {
-			close(output)
-			errors <- err
-		}
-	}()
-	return output, errors
-}
-
-func (be *BlockCipherEncoder) Encode(r io.Reader) (<-chan string, <-chan error) {
-	output := make(chan string, 1)
-	errors := make(chan error, 1)
-
-	go func() {
-		err := be.encodeInput(r, output)
-		if err != nil {
-			close(output)
-			errors <- err
-		}
-	}()
-	return output, errors
-}
-
-func (be *BlockCipherEncoder) decodeInput(r io.Reader, output chan<- string) error {
-	for ; ; {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5 * time.Second))
-		rawUrl, err := readRawUrl(ctx, r, be.topLevelDomain)
-		cancel()
-		if err != nil {
-			return err
-		}
-		// split into subdomains
-		subdomains := strings.Split(rawUrl[:len(rawUrl)-len(be.topLevelDomain)], ".")
-		// foreach subdomain
-		for _, subdomain := range subdomains {
-			//    base32 decode
-			decodedReader := base32.NewDecoder(base32.StdEncoding.WithPadding(base32.NoPadding), bytes.NewReader([]byte(subdomain)))
-			//    read until io.EOF
-			//    decrypt
-			//    emit
-		}
+func (be *BlockCipherEncoder) Decode(src []byte) ([]byte, error) {
+	blockSize := be.block.BlockSize()
+	if blockSize > MaxSubdomainNameLength {
+		return nil, fmt.Errorf("block size of %d is larger than maximum allowed sub-domain length of %d", blockSize, MaxSubdomainNameLength)
 	}
+
+	// 1. Remove base domain
+	i := strings.LastIndex(string(src), be.domainName.String())
+	if i != len(src)-len(be.domainName.String()) {
+		return nil, fmt.Errorf("unable to strip shared domain name from source")
+	}
+	encodedCipherText := stripByte(src[:i], '.')
+
+	// 1. Decode
+	cipherText, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(string(encodedCipherText))
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Decrypt
+	for i := 0; i < len(cipherText); i += blockSize {
+		be.block.Decrypt(cipherText[i:], cipherText[i:])
+	}
+	plainText := cipherText
+
+	// 1. Unpad
+	unPaddedPlainText, err := pkcs7Unpad(plainText, blockSize)
+	if err != nil {
+		return nil, err
+	}
+	return unPaddedPlainText, nil
 }
 
-func readRawUrl(ctx context.Context, r io.Reader, topLevelDomain string) (string, error) {
-	rawUrl := make([]byte, 0, MaxDomainNameLength)
-	for ; ; {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		default:
+func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
+	blockSize := be.block.BlockSize()
+	if blockSize > MaxSubdomainNameLength {
+		return "", fmt.Errorf("block size of %d is larger than maximum allowed sub-domain length of %d", blockSize, MaxSubdomainNameLength)
+	}
+
+	// 1. Pad
+	plainText, err := pkcs7Pad(src, blockSize)
+	if err != nil {
+		return "", err
+	}
+	// 1. Encrypt
+	for i := 0; i < len(plainText); i += blockSize {
+		be.block.Encrypt(plainText[i:], plainText[i:])
+	}
+	cipherText := plainText
+
+	// 1. Encode
+	b32Output := bytes.NewBuffer(make([]byte, 0, len(cipherText)))
+	b32Input := base32.NewEncoder(base32.StdEncoding.WithPadding(base32.NoPadding), b32Output)
+	b32Input.Write(cipherText)
+	b32Input.Close()
+	encodedCipherText := make([]byte, b32Output.Len())
+	n, err := b32Output.Read(encodedCipherText)
+	if err != nil {
+		return "", err
+	}
+	if n != len(encodedCipherText) {
+		return "", fmt.Errorf("failed to encode all bytes")
+	}
+
+	// 1. Build sub-domain
+	dn := be.domainName.Copy()
+	for i := 0; i < len(encodedCipherText); {
+		remainingCipherText := len(encodedCipherText) - i
+		n := (MaxSubdomainNameLength / blockSize) * blockSize
+		if remainingCipherText < n {
+			n = remainingCipherText
 		}
-		_, err := r.Read(rawUrl[len(rawUrl):])
+		err = dn.AddSubDomain(string(encodedCipherText[i:n]))
 		if err != nil {
 			return "", err
 		}
-
-		// not enough characters to hold top level domain, do not check if it contains
-		if len(rawUrl) < len(topLevelDomain) {
-			continue
-		}
-
-		// at max length length and does not include top level domain
-		if len(rawUrl) >= MaxDomainNameLength && !strings.Contains(string(rawUrl), topLevelDomain) {
-			return "", fmt.Errorf("top level domain `%s` not found in raw URL `%s`", topLevelDomain, rawUrl)
-		}
-
-		// does not include top level domain
-		if !strings.Contains(string(rawUrl), topLevelDomain) {
-			continue
-		}
-
-		return string(rawUrl), nil
+		i += n
 	}
+	return dn.String(), nil
 }
 
-func (be *BlockCipherEncoder) encodeInput(r io.Reader, output chan<- string) error {
+func (be *BlockCipherEncoder) MaxBytes() int {
 	blockSize := be.block.BlockSize()
-	src := make([]byte, blockSize)
-	encrypted := make([]byte, blockSize)
-	encodedOutputWriter := bytes.NewBuffer(make([]byte, (len(encrypted)*8/5)+1))
-	subdomain := bytes.NewBuffer(make([]byte, MaxDomainNameLength-len(be.topLevelDomain)))
-	for ; ; {
-		// read at most blockSize bytes
-		n, err := r.Read(src)
-		if err != nil {
-			return err
-		}
-		// pad data to block size
-		for i := 0; i < blockSize-n; i++ {
-			src = append(src, 0)
-		}
-		// encrypt data
-		be.block.Encrypt(encrypted, src)
-		// base32 encode
-		encodingInputWriter := base32.NewEncoder(base32.StdEncoding.WithPadding(base32.NoPadding), encodedOutputWriter)
-		n, err = encodingInputWriter.Write(encrypted)
-		if err != nil {
-			return err
-		}
-		if n != len(encrypted) {
-			return fmt.Errorf("failed to encode all data")
-		}
 
-		encodedOutputWriter.Reset()
-		subdomain.Reset()
-		// build subdomain
-	build_subdomain:
-		for remainingDomainNameLength := MaxDomainNameLength - len(be.topLevelDomain); remainingDomainNameLength > 0; {
-			for i := 0; i < be.maxSubdomainLevels; i++ {
-				nextSubdomainMaxLength := min(MaxSubdomainNameLength, remainingDomainNameLength)
-				encoded := encodedOutputWriter.Next(nextSubdomainMaxLength)
-				if len(encoded) == 0 {
-					break
-				}
-
-				subdomain.Write(encoded)
-				subdomain.Write([]byte("."))
-
-				if len(encoded) < nextSubdomainMaxLength {
-					break build_subdomain
-				}
-				remainingDomainNameLength = remainingDomainNameLength - nextSubdomainMaxLength - 1
-			}
-		}
-		output <- subdomain.String()
-		// clear slices
-		src = src[:0]
-		encrypted = encrypted[:0]
+	n := MaxDomainNameLength - len(be.domainName.String())
+	maxBlocks := n / (blockSize + 1)
+	if n % (blockSize + 1) > 0 {
+		maxBlocks += 1
 	}
+
+	return maxBlocks * blockSize
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+func stripByte(src []byte, b byte) []byte {
+	stripped := make([]byte, 0, len(src))
+	for i := 0; i < len(src); i++ {
+		// skip the strip
+		if src[i] == b {
+			continue
+		}
+		stripped = append(stripped, src[i])
 	}
-	return b
+	return stripped
 }
