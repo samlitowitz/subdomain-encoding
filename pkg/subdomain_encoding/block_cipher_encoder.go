@@ -9,13 +9,13 @@ import (
 	"strings"
 )
 
-const Terminator = 0xa
-
+// BlockCipherEncoder can encode or decode data using a block cipher into a domain name
 type BlockCipherEncoder struct {
 	block      cipher.Block
 	domainName *pkg.DomainName
 }
 
+// NewBlockCipherEncoder creates a new BlockCipherEncoder
 func NewBlockCipherEncoder(domainName *pkg.DomainName, block cipher.Block) *BlockCipherEncoder {
 	return &BlockCipherEncoder{
 		block:      block,
@@ -23,6 +23,7 @@ func NewBlockCipherEncoder(domainName *pkg.DomainName, block cipher.Block) *Bloc
 	}
 }
 
+// Decode takes a domain name which contains a message encoded using a block cipher
 func (be *BlockCipherEncoder) Decode(src []byte) ([]byte, error) {
 	blockSize := be.block.BlockSize()
 	if blockSize > MaxSubdomainNameLength {
@@ -56,6 +57,7 @@ func (be *BlockCipherEncoder) Decode(src []byte) ([]byte, error) {
 	return unPaddedPlainText, nil
 }
 
+// Encode encodes data into a domain name using a block cipher
 func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 	blockSize := be.block.BlockSize()
 	if blockSize > MaxSubdomainNameLength {
@@ -104,6 +106,7 @@ func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 	return dn.String(), nil
 }
 
+// MaxBytes is the maximum number of bytes that can be encoded into a single domain name taking the cipher block size and base domain name into account
 func (be *BlockCipherEncoder) MaxBytes() int {
 	blockSize := be.block.BlockSize()
 
