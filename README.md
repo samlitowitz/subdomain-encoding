@@ -1,12 +1,5 @@
+# Sub-domain Encoder
+[![Go Report Card](https://goreportcard.com/badge/github.com/samlitowitz/subdomain-encoding)](https://goreportcard.com/report/github.com/samlitowitz/subdomain-encoding)
+[![Go Reference](https://pkg.go.dev/badge/github.com/samlitowitz/subdomain-encoding.svg)](https://pkg.go.dev/github.com/samlitowitz/subdomain-encoding)
 
-
-# Domain Name
-1. max 253 bytes in length
-
-## Sub-domain
-1. 1 to 63 bytes in length
-1. Case insensitive
-1. /[a-zA-Z0-9]+[a-zA-Z0-9\-]+?/
-
-# References
-1. https://en.wikipedia.org/wiki/Domain_name "Domain Name"
+See Go.dev documentation or use the command line tool.
