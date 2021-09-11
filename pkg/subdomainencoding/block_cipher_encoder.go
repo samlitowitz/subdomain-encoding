@@ -121,7 +121,7 @@ func (be *BlockCipherEncoder) MaxBytes() int {
 
 	n := pkg.MaxDomainNameLength - len(be.domainName.String())
 	maxBlocks := n / (blockSize + 1)
-	if n % (blockSize + 1) > 0 {
+	if n%(blockSize+1) > 0 {
 		maxBlocks += 1
 	}
 
