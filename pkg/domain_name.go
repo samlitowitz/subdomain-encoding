@@ -58,12 +58,15 @@ func (dn *DomainName) AddSubDomain(subDomain string) error {
 }
 
 // Copy creates a copy of the domain name
-func (dn *DomainName) Copy() *DomainName {
+func (dn *DomainName) Copy() (*DomainName, error) {
 	output := NewDomainName()
 	for _, label := range dn.names {
-		output.AddSubDomain(label)
+		err := output.AddSubDomain(label)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return output
+	return output, nil
 }
 
 // SetTopLevelDomain sets the top level domain

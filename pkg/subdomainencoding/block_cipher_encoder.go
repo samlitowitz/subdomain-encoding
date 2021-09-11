@@ -90,7 +90,10 @@ func (be *BlockCipherEncoder) Encode(src []byte) (string, error) {
 	}
 
 	// 1. Build sub-domain
-	dn := be.domainName.Copy()
+	dn, err := be.domainName.Copy()
+	if err != nil {
+		return "", err
+	}
 	for i := 0; i < len(encodedCipherText); {
 		remainingCipherText := len(encodedCipherText) - i
 		n := (MaxSubdomainNameLength / blockSize) * blockSize
