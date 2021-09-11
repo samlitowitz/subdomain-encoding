@@ -6,10 +6,11 @@ import (
 )
 
 const (
-	MaxDomainNameLength    int = 253
-	MaxSubdomainNameLength int = 63
+	MaxDomainNameLength    int = 253 // MaxDomainNameLength is the maximum length of a domain name
+	MaxSubdomainNameLength int = 63 // MaxSubdomainNameLength is the maximum length of an individual sub-domain
 )
 
+// InvalidLabelError is for errors related to invalid labels
 type InvalidLabelError struct {
 	label string
 }
@@ -18,6 +19,7 @@ func (err *InvalidLabelError) Error() string {
 	return fmt.Sprintf("invalid label `%s`", err.label)
 }
 
+// InvalidDomainNameError is for errors related to invalid domain names
 type InvalidDomainNameError struct {
 	domainName string
 }
@@ -26,16 +28,18 @@ func (err *InvalidDomainNameError) Error() string {
 	return fmt.Sprintf("invalid label `%s`", err.domainName)
 }
 
+// DomainName represents a domain name
 type DomainName struct {
 	names []string
 }
-
+// NewDomainName creates a new DomainName
 func NewDomainName() *DomainName {
 	return &DomainName{
 		names: make([]string, 0),
 	}
 }
 
+// AddSubDomain adds a sub-domain to the domain name
 func (dn *DomainName) AddSubDomain(subDomain string) error {
 	if len(subDomain) < 1 || len(subDomain) > MaxSubdomainNameLength {
 		return &InvalidLabelError{label: subDomain}
@@ -50,6 +54,7 @@ func (dn *DomainName) AddSubDomain(subDomain string) error {
 	return nil
 }
 
+// Copy creates a copy of the domain name
 func (dn *DomainName) Copy() *DomainName {
 	output := NewDomainName()
 	for _, label := range dn.names {
@@ -58,6 +63,7 @@ func (dn *DomainName) Copy() *DomainName {
 	return output
 }
 
+// SetTopLevelDomain sets the top level domain
 func (dn *DomainName) SetTopLevelDomain(tld string) error {
 	if len(tld) < 1 || len(tld) > MaxSubdomainNameLength {
 		return &InvalidLabelError{label: tld}
