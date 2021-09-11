@@ -29,7 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	encoder := subdomain_encoding.NewBlockCipherEncoder(domainName, cipher)
+	encoder := subdomainencoding.NewBlockCipherEncoder(domainName, cipher)
 	buf := make([]byte, 0, encoder.MaxBytes())
 	for {
 		n, err := os.Stdin.Read(buf)

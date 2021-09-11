@@ -1,4 +1,4 @@
-package subdomain_encoding
+package subdomainencoding
 
 // REFURL: https://github.com/go-web/tokenizer/blob/master/pkcs7.go
 import (

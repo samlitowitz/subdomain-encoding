@@ -1,4 +1,4 @@
-package subdomain_encoding
+package subdomainencoding
 
 import "io"
 

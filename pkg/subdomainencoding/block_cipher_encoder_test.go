@@ -1,4 +1,4 @@
-package subdomain_encoding_test
+package subdomainencoding_test
 
 import (
 	"crypto/aes"
@@ -17,7 +17,7 @@ func TestBlockCipherEncoder_Decode(t *testing.T) {
 	dn := pkg.NewDomainName()
 	dn.AddSubDomain("com")
 	dn.AddSubDomain("test")
-	bce := subdomain_encoding.NewBlockCipherEncoder(dn, cipher)
+	bce := subdomainencoding.NewBlockCipherEncoder(dn, cipher)
 
 	testPhrase := "Hello World!"
 	plainText := make([]byte, len(testPhrase))
