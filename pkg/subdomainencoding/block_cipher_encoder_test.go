@@ -3,8 +3,8 @@ package subdomainencoding_test
 import (
 	"crypto/aes"
 	"encoding/hex"
-	"github.com/samlitowitz/subdomain-block-encoding/pkg"
-	"github.com/samlitowitz/subdomain-block-encoding/pkg/subdomainencoding"
+	"github.com/samlitowitz/subdomain-encoding/pkg"
+	"github.com/samlitowitz/subdomain-encoding/pkg/subdomainencoding"
 	"testing"
 )
 

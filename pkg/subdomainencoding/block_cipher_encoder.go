@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/base32"
 	"fmt"
-	"github.com/samlitowitz/subdomain-block-encoding/pkg"
+	"github.com/samlitowitz/subdomain-encoding/pkg"
 	"strings"
 )
 
