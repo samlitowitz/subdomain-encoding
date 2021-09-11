@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"encoding/hex"
 	"github.com/samlitowitz/subdomain-block-encoding/pkg"
-	"github.com/samlitowitz/subdomain-block-encoding/pkg/subdomain_encoding"
+	"github.com/samlitowitz/subdomain-block-encoding/pkg/subdomainencoding"
 	"testing"
 )
 
