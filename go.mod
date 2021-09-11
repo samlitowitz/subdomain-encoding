@@ -1,3 +1,3 @@
-module github.com/samlitowitz/subdomain-block-encoding
+module github.com/samlitowitz/subdomain-encoding
 
 go 1.14
