@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	MaxDomainNameLength    int = 253 // MaxDomainNameLength is the maximum length of a domain name
-	MaxSubdomainNameLength int = 63 // MaxSubdomainNameLength is the maximum length of an individual sub-domain
+	// MaxDomainNameLength is the maximum length of a domain name
+	MaxDomainNameLength int = 253
+	// MaxSubdomainNameLength is the maximum length of an individual sub-domain
+	MaxSubdomainNameLength int = 63
 )
 
 // InvalidLabelError is for errors related to invalid labels
@@ -32,6 +34,7 @@ func (err *InvalidDomainNameError) Error() string {
 type DomainName struct {
 	names []string
 }
+
 // NewDomainName creates a new DomainName
 func NewDomainName() *DomainName {
 	return &DomainName{
